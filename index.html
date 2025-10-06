@@ -43,13 +43,11 @@
 
     <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
 
-        <!-- Header -->
         <header class="text-center mb-12">
             <h1 class="text-6xl sm:text-6xl font-bold text-yellow-300" style="text-shadow: 3px 3px 0px #ef4444, 6px 6px 0px #000;">Google 文件圖片網址提取器!</h1>
             <p class="mt-2 text-lg font-bold">貼上 Google 文件網址，剩下的交給我！</p>
         </header>
 
-        <!-- Input Section -->
         <div class="bg-pink-400 p-6 border-4 border-black rounded-xl pop-shadow mb-12">
             <div class="flex flex-col sm:flex-row gap-4">
                 <input type="url" id="gdoc-url" placeholder="https://docs.google.com/document/d/e/.../pub" class="flex-grow p-3 border-2 border-black rounded-lg text-lg focus:ring-4 focus:ring-yellow-300 focus:border-black transition duration-150 ease-in-out" required>
@@ -59,25 +57,33 @@
             </div>
         </div>
         
-        <!-- Results Section -->
         <div id="status" class="text-center my-6 font-bold"></div>
-
-        <div id="results" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
-            <!-- 提取的圖片將會顯示在這裡 -->
+        
+        <div id="slideshow-button-container" class="text-center my-6" style="display:none;">
+            <button onclick="generateSlideshowHtml(extractedImageUrls)" class="font-pop text-xl bg-purple-500 text-white px-6 py-3 rounded-lg border-2 border-black hover:bg-purple-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all duration-150 pop-shadow-sm">
+                生成相簿 HTML 並下載!
+            </button>
         </div>
+        <div id="results" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
+            </div>
 
     </div>
 
-    <!-- Footer -->
     <footer class="text-center p-6 mt-12">
         <p class="font-bold">Made by <a href="#" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline hover:text-pink-500">阿剛老師</a></p>
     </footer>
 
+    <script src="photo.js"></script> 
+    
     <script>
         // 取得頁面上的元素
         const urlInput = document.getElementById('gdoc-url');
         const resultsContainer = document.getElementById('results');
         const statusDiv = document.getElementById('status');
+        const slideshowButtonContainer = document.getElementById('slideshow-button-container');
+        
+        // 步驟 2: 宣告全域變數以儲存網址，供 photo.js 呼叫
+        let extractedImageUrls = []; 
 
         urlInput.addEventListener('keypress', function(event) {
             if (event.key === 'Enter') {
@@ -93,8 +99,10 @@
                 return;
             }
 
-            // 清空先前的結果並顯示載入中
+            // 清空先前的結果、圖片網址列表並隱藏相簿按鈕
             resultsContainer.innerHTML = '';
+            extractedImageUrls = []; // 清空圖片網址列表
+            slideshowButtonContainer.style.display = 'none'; // 隱藏按鈕
             showStatus('<div class="loader mx-auto"></div><p class="mt-2 font-pop text-2xl">尋找中...</p>', 'loading');
 
             const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
@@ -122,6 +130,7 @@
                     const src = img.src;
                     if (src && src.includes('googleusercontent.com')) {
                         imageCount++;
+                        extractedImageUrls.push(src); // 儲存圖片網址
                         createImageCard(src);
                     }
                 });
@@ -130,6 +139,8 @@
                      showStatus('嗯...找不到 Google 文件的圖片喔。', 'info');
                 } else {
                      showStatus(`讚啦！找到 ${imageCount} 張圖片！`, 'success');
+                     // 顯示相簿按鈕，傳遞 extractedImageUrls 給 generateSlideshowHtml
+                     slideshowButtonContainer.style.display = 'block';
                 }
 
 
@@ -165,17 +176,49 @@
             copyButton.onclick = (e) => {
                 e.target.disabled = true;
                 urlInput.select();
-                document.execCommand('copy');
-                e.target.textContent = '複製成功!';
-                e.target.classList.remove('bg-yellow-300');
-                e.target.classList.add('bg-green-400');
-                
-                setTimeout(() => {
-                    e.target.textContent = '複製網址';
-                    e.target.classList.remove('bg-green-400');
-                    e.target.classList.add('bg-yellow-300');
-                    e.target.disabled = false;
-                }, 2000);
+                // 檢查瀏覽器是否支援
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(urlInput.value).then(() => {
+                         e.target.textContent = '複製成功!';
+                        e.target.classList.remove('bg-yellow-300');
+                        e.target.classList.add('bg-green-400');
+                        
+                        setTimeout(() => {
+                            e.target.textContent = '複製網址';
+                            e.target.classList.remove('bg-green-400');
+                            e.target.classList.add('bg-yellow-300');
+                            e.target.disabled = false;
+                        }, 2000);
+                    }).catch(err => {
+                        // 舊的備用方法
+                        urlInput.select();
+                        document.execCommand('copy');
+                         e.target.textContent = '複製成功!';
+                        e.target.classList.remove('bg-yellow-300');
+                        e.target.classList.add('bg-green-400');
+                        
+                        setTimeout(() => {
+                            e.target.textContent = '複製網址';
+                            e.target.classList.remove('bg-green-400');
+                            e.target.classList.add('bg-yellow-300');
+                            e.target.disabled = false;
+                        }, 2000);
+                    });
+                } else {
+                    // 舊的備用方法
+                    urlInput.select();
+                    document.execCommand('copy');
+                    e.target.textContent = '複製成功!';
+                    e.target.classList.remove('bg-yellow-300');
+                    e.target.classList.add('bg-green-400');
+                    
+                    setTimeout(() => {
+                        e.target.textContent = '複製網址';
+                        e.target.classList.remove('bg-green-400');
+                        e.target.classList.add('bg-yellow-300');
+                        e.target.disabled = false;
+                    }, 2000);
+                }
             };
 
             infoDiv.appendChild(urlInput);
